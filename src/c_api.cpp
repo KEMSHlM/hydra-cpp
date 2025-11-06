@@ -234,6 +234,14 @@ hydra_status_t hydra_config_apply_cli(hydra_config_t* config, int argc,
     }
   }
 
+  // Resolve interpolations after loading all configs and overrides
+  try {
+    hydra::resolve_interpolations(config->node);
+  } catch (const std::exception& ex) {
+    assign_error(error_message, std::string("Failed to resolve interpolations: ") + ex.what());
+    return HYDRA_STATUS_ERROR;
+  }
+
   return HYDRA_STATUS_OK;
 }
 

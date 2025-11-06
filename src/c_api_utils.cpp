@@ -170,14 +170,6 @@ hydra_status_t hydra_config_finalize_run(hydra_config_t* config,
       *run_dir_out = duplicate_string(run_dir.string().c_str());
     }
 
-    // Auto-setup log file after run directory is created
-    char* log_err = nullptr;
-    hydra_logging_setup_file(run_dir.string().c_str(), &log_err);
-    if (log_err != nullptr) {
-      // Silently ignore file logging errors
-      hydra_string_free(log_err);
-    }
-
     return HYDRA_STATUS_OK;
   } catch (const std::exception& ex) {
     set_error(error_message, ex.what());

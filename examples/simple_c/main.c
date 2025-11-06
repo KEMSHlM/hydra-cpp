@@ -141,7 +141,14 @@ int main(int argc, char** argv) {
                 err);
   err = NULL;
 
-  /* Initialize logging from config (reads hydra.job_logging.root.level) */
+  char* run_dir_path = NULL;
+  exit_on_error("write hydra outputs",
+                hydra_config_finalize_run(cfg,
+                                          (const char* const*)overrides.items,
+                                          overrides.count, &run_dir_path, &err),
+                err);
+
+  /* Initialize logging after run directory is created */
   exit_on_error("initialize logging", hydra_logging_init(cfg, &err), err);
   err = NULL;
 
@@ -152,13 +159,6 @@ int main(int argc, char** argv) {
 
   /* Dump resolved configuration for inspection */
   exit_on_error("log config", hydra_logging_debug_config(cfg, &err), err);
-
-  char* run_dir_path = NULL;
-  exit_on_error("write hydra outputs",
-                hydra_config_finalize_run(cfg,
-                                          (const char* const*)overrides.items,
-                                          overrides.count, &run_dir_path, &err),
-                err);
   if (run_dir_path != NULL) {
     log_info("Hydra outputs written under %s/.hydra", run_dir_path);
     hydra_string_free(run_dir_path);

@@ -2,9 +2,17 @@ run:
   dir: ${paths.base_output_dir}/${now:%Y-%m-%d}_${now:%H-%M-%S}
 
 job:
-  name: app  # Default job name for log file (${job.name}.log)
+  name: app
 
 job_logging:
-  handlers: [console, file]  # Available handlers: console, file
+  version: 1
+  handlers:
+    console:
+      # Console output with colors (enabled by default)
+    file:
+      # File output configuration
+      filename: ${hydra.run.dir}/${hydra.job.name}.log
   root:
-    level: INFO  # Available: TRACE, DEBUG, INFO, WARN, ERROR, FATAL
+    level: INFO
+    handlers: [console, file]  # Enable/disable handlers here
+  disable_existing_loggers: false

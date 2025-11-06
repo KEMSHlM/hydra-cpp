@@ -118,14 +118,11 @@ int main(int argc, char** argv) try {
                        hydra::make_string("cpp_example"), true);
   }
 
-  // Initialize logging from config
-  hydra::init_logging(config);
-
   fs::path run_dir_path =
       hydra::utils::write_hydra_outputs(config, cli.overrides);
 
-  // Auto-setup log file after run directory is created
-  hydra::setup_log_file(run_dir_path.string());
+  // Initialize logging after run directory is created
+  hydra::init_logging(config);
 
   AppConfig app = bind_config(config);
 

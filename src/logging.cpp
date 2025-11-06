@@ -12,9 +12,14 @@
 
 namespace fs = std::filesystem;
 
+struct hydra_config {
+  hydra::ConfigNode node;
+};
+
 namespace {
 
 FILE* log_file_handle = nullptr;
+std::string current_log_file_path;
 
 int parse_log_level(const char* level_str) {
   if (level_str == nullptr) {
@@ -79,40 +84,75 @@ void hydra::init_logging(const ConfigNode& config) {
   int log_level = parse_log_level(level_str.c_str());
   log_set_level(log_level);
 
-  // Auto-setup file logging if run.dir exists
+  // Check if file handler is enabled in hydra.job_logging.root.handlers
+  bool enable_file_logging = false;
   try {
-    const ConfigNode* run_dir_node = find_path(config, {"hydra", "run", "dir"});
-    if (run_dir_node && run_dir_node->is_string()) {
-      std::string run_dir = run_dir_node->as_string();
-      if (run_dir != "null" && !run_dir.empty()) {
-        // Get job name
-        std::string job_name = "app";  // default
-        const ConfigNode* job_name_node =
-            find_path(config, {"hydra", "job", "name"});
-        if (job_name_node && job_name_node->is_string()) {
-          job_name = job_name_node->as_string();
+    const ConfigNode* handlers_node =
+        find_path(config, {"hydra", "job_logging", "root", "handlers"});
+    if (handlers_node && handlers_node->is_sequence()) {
+      const auto& handlers = handlers_node->as_sequence();
+      for (const auto& handler : handlers) {
+        if (handler.is_string() && handler.as_string() == "file") {
+          enable_file_logging = true;
+          break;
+        }
+      }
+    }
+  } catch (...) {
+    // If handlers config is missing or invalid, disable file logging
+    enable_file_logging = false;
+  }
+
+  // Setup file logging if enabled
+  if (enable_file_logging) {
+    try {
+      // Read filename from config (hydra.job_logging.handlers.file.filename)
+      std::string log_path_str;
+      const ConfigNode* filename_node =
+          find_path(config, {"hydra", "job_logging", "handlers", "file", "filename"});
+
+      if (filename_node && filename_node->is_string()) {
+        log_path_str = filename_node->as_string();
+      } else {
+        // Default filename if not specified
+        const ConfigNode* run_dir_node = find_path(config, {"hydra", "run", "dir"});
+        const ConfigNode* job_name_node = find_path(config, {"hydra", "job", "name"});
+
+        std::string run_dir = run_dir_node && run_dir_node->is_string()
+                              ? run_dir_node->as_string() : ".";
+        std::string job_name = job_name_node && job_name_node->is_string()
+                               ? job_name_node->as_string() : "app";
+
+        log_path_str = run_dir + "/" + job_name + ".log";
+      }
+
+      if (!log_path_str.empty() && log_path_str != "null") {
+        fs::path log_path = log_path_str;
+
+        // Skip if already logging to the same file
+        if (log_file_handle != nullptr && current_log_file_path == log_path.string()) {
+          // Already logging to this file, nothing to do
+          return;
         }
 
-        std::string log_filename = job_name + ".log";
-        fs::path run_path         = run_dir;
-        fs::path log_path         = run_path / log_filename;
-
-        // Close existing log file if any
+        // Close existing log file if opening a different file
         if (log_file_handle != nullptr) {
           std::fclose(log_file_handle);
           log_file_handle = nullptr;
+          current_log_file_path.clear();
         }
 
         // Open log file for writing
         log_file_handle = std::fopen(log_path.string().c_str(), "w");
         if (log_file_handle != nullptr) {
+          current_log_file_path = log_path.string();
           // Add file to log.c callbacks
           log_add_fp(log_file_handle, LOG_TRACE);
         }
       }
+    } catch (...) {
+      // Silently ignore file logging errors - console logging still works
     }
-  } catch (...) {
-    // Silently ignore file logging errors - console logging still works
   }
 }
 
@@ -155,81 +195,14 @@ extern "C" hydra_status_t hydra_logging_init(const hydra_config_t* config,
     *error_message = nullptr;
   }
 
-  char* err = nullptr;
-
-  // Read log level from config (hydra.job_logging.root.level)
-  char* level_str   = nullptr;
-  hydra_status_t status =
-      hydra_config_get_string(config, "hydra.job_logging.root.level",
-                              &level_str, &err);
-
-  int log_level = LOG_INFO;  // default
-  if (status == HYDRA_STATUS_OK && level_str != nullptr) {
-    log_level = parse_log_level(level_str);
-    hydra_string_free(level_str);
+  try {
+    // Use C++ API internally
+    hydra::init_logging(config->node);
+    return HYDRA_STATUS_OK;
+  } catch (const std::exception& ex) {
+    assign_error(error_message, ex.what());
+    return HYDRA_STATUS_ERROR;
   }
-  hydra_string_free(err);
-  err = nullptr;
-
-  // Set log level
-  log_set_level(log_level);
-
-  // Check if file handler is enabled (hydra.job_logging.handlers)
-  // Default behavior: file logging is enabled if run_dir exists
-  bool enable_file_logging = true;
-
-  // Try to read handlers list
-  if (hydra_config_has(config, "hydra.job_logging.handlers")) {
-    // For now, we assume file logging is enabled by default
-    // TODO: Parse the handlers list properly
-    enable_file_logging = true;
-  }
-
-  // Auto-setup file logging if enabled
-  if (enable_file_logging) {
-    char* run_dir = nullptr;
-    status = hydra_config_get_string(config, "hydra.run.dir", &run_dir, &err);
-
-    if (status == HYDRA_STATUS_OK && run_dir != nullptr &&
-        std::strcmp(run_dir, "null") != 0) {
-      char* job_name = nullptr;
-      hydra_status_t job_status =
-          hydra_config_get_string(config, "hydra.job.name", &job_name, &err);
-
-      std::string log_filename = "app.log";  // default
-      if (job_status == HYDRA_STATUS_OK && job_name != nullptr) {
-        log_filename = std::string(job_name) + ".log";
-        hydra_string_free(job_name);
-      }
-      hydra_string_free(err);
-      err = nullptr;
-
-      try {
-        fs::path run_path = run_dir;
-        fs::path log_path = run_path / log_filename;
-
-        // Close existing log file if any
-        if (log_file_handle != nullptr) {
-          std::fclose(log_file_handle);
-          log_file_handle = nullptr;
-        }
-
-        // Open log file for writing
-        log_file_handle = std::fopen(log_path.string().c_str(), "w");
-        if (log_file_handle != nullptr) {
-          // Add file to log.c callbacks
-          log_add_fp(log_file_handle, LOG_TRACE);
-        }
-      } catch (const std::exception& ex) {
-        // Silently ignore file logging errors - console logging still works
-      }
-    }
-
-    hydra_string_free(run_dir);
-    hydra_string_free(err);
-  }
-
-  return HYDRA_STATUS_OK;
 }
 
 extern "C" hydra_status_t hydra_logging_debug_config(
