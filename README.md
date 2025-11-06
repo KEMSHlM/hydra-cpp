@@ -127,6 +127,10 @@ Unit tests cover override parsing, defaults composition, interpolation (includin
 - The CLI enforces Hydra semantics: existing keys updated with `key=value`, new keys require `+key=value`.
 - To disable run directory creation for a run: `./build/hydra-cpp ... hydra.run.dir=null`.
 
+### Contributing
+
+If you have suggestions or improvements, please open a pull request.
+
 ---
 
 ## 日本語
@@ -196,3 +200,7 @@ CLI 上書き、`defaults` マージ、補間（環境変数・現在時刻含�
 
 - `hydra.run.dir=null` を指定すると出力ディレクトリの生成を抑止できます。
 - 将来規模が大きくなる場合は `src/main.cpp` の責務分離や、補間処理の共通ユーティリティ化などリファクタリング余地があります。
+
+### 貢献
+
+修正案や改善案がある場合は、プルリクエストをお送りください。
