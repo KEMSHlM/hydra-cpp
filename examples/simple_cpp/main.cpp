@@ -1,18 +1,11 @@
 #include "hydra/config_node.hpp"
 #include "hydra/config_utils.hpp"
-#include "hydra/interpolation.hpp"
 #include "hydra/logging.hpp"
-#include "hydra/overrides.hpp"
-#include "hydra/yaml_emitter.hpp"
-#include "hydra/yaml_loader.hpp"
 
 #include <filesystem>
 #include <iostream>
-#include <optional>
-#include <sstream>
 #include <stdexcept>
 #include <string>
-#include <vector>
 
 namespace fs = std::filesystem;
 
@@ -69,73 +62,20 @@ AppConfig bind_config(const hydra::ConfigNode& root) {
   return cfg;
 }
 
-struct CliParseResult {
-  std::vector<fs::path> config_files;
-  std::vector<std::string> overrides;
-};
-
-CliParseResult parse_cli(int argc, char** argv) {
-  CliParseResult result;
-  for (int i = 1; i < argc; ++i) {
-    std::string arg = argv[i];
-    if (arg == "-c" || arg == "--config") {
-      if (i + 1 >= argc) {
-        throw std::runtime_error("--config requires an argument");
-      }
-      result.config_files.emplace_back(argv[++i]);
-    } else if (arg.rfind("--config=", 0) == 0) {
-      result.config_files.emplace_back(arg.substr(9));
-    } else {
-      result.overrides.emplace_back(std::move(arg));
-    }
-  }
-
-  if (result.config_files.empty()) {
-    result.config_files.emplace_back("configs/main.yaml");
-  }
-  return result;
-}
-
 int main(int argc, char** argv) try {
-  CliParseResult cli = parse_cli(argc, argv);
+  // Initialize Hydra configuration (loads config, applies overrides, resolves interpolations)
+  hydra::ConfigNode config = hydra::utils::initialize(argc, argv);
 
-  hydra::ConfigNode config = hydra::make_mapping();
-
-  for (const auto& path : cli.config_files) {
-    hydra::ConfigNode loaded = hydra::load_yaml_file(path);
-    hydra::merge(config, loaded);
-  }
-
-  for (const auto& expr : cli.overrides) {
-    hydra::Override ov = hydra::parse_override(expr);
-    hydra::assign_path(config, ov.path, std::move(ov.value), ov.require_new);
-  }
-
-  // Set job name from program name if not already set
-  const hydra::ConfigNode* job_name_node =
-      hydra::find_path(config, {"hydra", "job", "name"});
-  if (!job_name_node || job_name_node->is_null()) {
-    std::string job_name = "app";  // default fallback
-    if (argc > 0 && argv != nullptr && argv[0] != nullptr) {
-      // Extract basename from argv[0]
-      fs::path prog_path = argv[0];
-      job_name = prog_path.filename().string();
-    }
-    hydra::assign_path(config, {"hydra", "job", "name"},
-                       hydra::make_string(job_name), false);
-  }
-
-  hydra::resolve_interpolations(config);
-
+  // Set default experiment name if not specified
   if (!hydra::utils::has_node(config, {"experiment", "name"})) {
     hydra::assign_path(config, {"experiment", "name"},
                        hydra::make_string("cpp_example"), true);
   }
 
-  fs::path run_dir_path =
-      hydra::utils::write_hydra_outputs(config, cli.overrides);
+  // Write Hydra outputs (.hydra directory with configs)
+  fs::path run_dir_path = hydra::utils::write_hydra_outputs(config, {});
 
-  // Initialize logging after run directory is created
+  // Initialize logging (console + file based on config)
   hydra::init_logging(config);
 
   AppConfig app = bind_config(config);
