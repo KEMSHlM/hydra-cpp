@@ -1,5 +1,7 @@
 #include "hydra/config_node.hpp"
+#include "hydra/config_utils.hpp"
 #include "hydra/interpolation.hpp"
+#include "hydra/logging.hpp"
 #include "hydra/overrides.hpp"
 #include "hydra/yaml_emitter.hpp"
 #include "hydra/yaml_loader.hpp"
@@ -297,6 +299,221 @@ TEST_CASE(yaml_emission_round_trip) {
   ASSERT_TRUE(numbers != nullptr);
   ASSERT_TRUE(numbers->is_sequence());
   ASSERT_EQ(numbers->as_sequence().size(), static_cast<size_t>(2));
+}
+
+TEST_CASE(logging_level_debug) {
+  fs::path config_path = "../../tests/configs/logging/level_debug.yaml";
+  if (!fs::exists(config_path)) {
+    return;
+  }
+
+  hydra::ConfigNode config = hydra::load_yaml_file(config_path);
+  hydra::resolve_interpolations(config);
+
+  const hydra::ConfigNode* level =
+      hydra::find_path(config, {"hydra", "job_logging", "root", "level"});
+  ASSERT_TRUE(level != nullptr);
+  ASSERT_TRUE(level->is_string());
+  ASSERT_EQ(level->as_string(), std::string("DEBUG"));
+
+  const hydra::ConfigNode* handlers =
+      hydra::find_path(config, {"hydra", "job_logging", "root", "handlers"});
+  ASSERT_TRUE(handlers != nullptr);
+  ASSERT_TRUE(handlers->is_sequence());
+  ASSERT_EQ(handlers->as_sequence().size(), static_cast<size_t>(2));
+}
+
+TEST_CASE(logging_console_only) {
+  fs::path config_path = "../../tests/configs/logging/console_only.yaml";
+  if (!fs::exists(config_path)) {
+    return;
+  }
+
+  hydra::ConfigNode config = hydra::load_yaml_file(config_path);
+  hydra::resolve_interpolations(config);
+
+  const hydra::ConfigNode* handlers =
+      hydra::find_path(config, {"hydra", "job_logging", "root", "handlers"});
+  ASSERT_TRUE(handlers != nullptr);
+  ASSERT_TRUE(handlers->is_sequence());
+  ASSERT_EQ(handlers->as_sequence().size(), static_cast<size_t>(1));
+  ASSERT_EQ(handlers->as_sequence()[0].as_string(), std::string("console"));
+}
+
+TEST_CASE(logging_file_only) {
+  fs::path config_path = "../../tests/configs/logging/file_only.yaml";
+  if (!fs::exists(config_path)) {
+    return;
+  }
+
+  hydra::ConfigNode config = hydra::load_yaml_file(config_path);
+  hydra::resolve_interpolations(config);
+
+  const hydra::ConfigNode* handlers =
+      hydra::find_path(config, {"hydra", "job_logging", "root", "handlers"});
+  ASSERT_TRUE(handlers != nullptr);
+  ASSERT_TRUE(handlers->is_sequence());
+  ASSERT_EQ(handlers->as_sequence().size(), static_cast<size_t>(1));
+  ASSERT_EQ(handlers->as_sequence()[0].as_string(), std::string("file"));
+
+  const hydra::ConfigNode* filename = hydra::find_path(
+      config, {"hydra", "job_logging", "handlers", "file", "filename"});
+  ASSERT_TRUE(filename != nullptr);
+  ASSERT_TRUE(filename->is_string());
+}
+
+TEST_CASE(integration_simple_config) {
+  fs::path config_path = "../../tests/configs/integration/simple.yaml";
+  if (!fs::exists(config_path)) {
+    return;
+  }
+
+  hydra::ConfigNode config = hydra::load_yaml_file(config_path);
+  hydra::resolve_interpolations(config);
+
+  const hydra::ConfigNode* model_name =
+      hydra::find_path(config, {"model", "name"});
+  ASSERT_TRUE(model_name != nullptr);
+  ASSERT_TRUE(model_name->is_string());
+  ASSERT_EQ(model_name->as_string(), std::string("resnet"));
+
+  const hydra::ConfigNode* batch_size =
+      hydra::find_path(config, {"trainer", "batch_size"});
+  ASSERT_TRUE(batch_size != nullptr);
+  ASSERT_TRUE(batch_size->is_int());
+  ASSERT_EQ(batch_size->as_int(), static_cast<int64_t>(32));
+}
+
+TEST_CASE(integration_env_variables) {
+  fs::path config_path = "../../tests/configs/integration/with_env.yaml";
+  if (!fs::exists(config_path)) {
+    return;
+  }
+
+#ifdef _WIN32
+  _putenv_s("TEST_OUTPUT_DIR", "/tmp/test_hydra");
+  _putenv_s("DB_HOST", "testdb.example.com");
+  _putenv_s("MODEL_NAME", "efficientnet");
+  _putenv_s("BATCH_SIZE", "128");
+#else
+  setenv("TEST_OUTPUT_DIR", "/tmp/test_hydra", 1);
+  setenv("DB_HOST", "testdb.example.com", 1);
+  setenv("MODEL_NAME", "efficientnet", 1);
+  setenv("BATCH_SIZE", "128", 1);
+#endif
+
+  hydra::ConfigNode config = hydra::load_yaml_file(config_path);
+  hydra::resolve_interpolations(config);
+
+  const hydra::ConfigNode* db_host =
+      hydra::find_path(config, {"database", "host"});
+  ASSERT_TRUE(db_host != nullptr);
+  ASSERT_TRUE(db_host->is_string());
+  ASSERT_EQ(db_host->as_string(), std::string("testdb.example.com"));
+
+  const hydra::ConfigNode* model_name =
+      hydra::find_path(config, {"model", "name"});
+  ASSERT_TRUE(model_name != nullptr);
+  ASSERT_TRUE(model_name->is_string());
+  ASSERT_EQ(model_name->as_string(), std::string("efficientnet"));
+
+  const hydra::ConfigNode* batch_size =
+      hydra::find_path(config, {"trainer", "batch_size"});
+  ASSERT_TRUE(batch_size != nullptr);
+  // Environment variables are interpolated as strings
+  ASSERT_TRUE(batch_size->is_string());
+  ASSERT_EQ(batch_size->as_string(), std::string("128"));
+
+#ifdef _WIN32
+  _putenv_s("TEST_OUTPUT_DIR", "");
+  _putenv_s("DB_HOST", "");
+  _putenv_s("MODEL_NAME", "");
+  _putenv_s("BATCH_SIZE", "");
+#else
+  unsetenv("TEST_OUTPUT_DIR");
+  unsetenv("DB_HOST");
+  unsetenv("MODEL_NAME");
+  unsetenv("BATCH_SIZE");
+#endif
+}
+
+TEST_CASE(utils_initialize_basic) {
+  fs::path config_path = "../../tests/configs/integration/simple.yaml";
+  if (!fs::exists(config_path)) {
+    return;
+  }
+
+  const char* argv[]       = {"test_program", nullptr};
+  hydra::ConfigNode config = hydra::utils::initialize(
+      1, const_cast<char**>(argv), config_path.string());
+
+  // Check job name was auto-derived
+  const hydra::ConfigNode* job_name =
+      hydra::find_path(config, {"hydra", "job", "name"});
+  ASSERT_TRUE(job_name != nullptr);
+  ASSERT_TRUE(job_name->is_string());
+  ASSERT_EQ(job_name->as_string(), std::string("test_program"));
+
+  // Check model config
+  const hydra::ConfigNode* model_name =
+      hydra::find_path(config, {"model", "name"});
+  ASSERT_TRUE(model_name != nullptr);
+  ASSERT_TRUE(model_name->is_string());
+  ASSERT_EQ(model_name->as_string(), std::string("resnet"));
+}
+
+TEST_CASE(utils_initialize_with_overrides) {
+  fs::path config_path = "../../tests/configs/integration/simple.yaml";
+  if (!fs::exists(config_path)) {
+    return;
+  }
+
+  const char* argv[]       = {"test_program", "trainer.batch_size=64",
+                              "model.depth=101", nullptr};
+  hydra::ConfigNode config = hydra::utils::initialize(
+      3, const_cast<char**>(argv), config_path.string());
+
+  const hydra::ConfigNode* batch_size =
+      hydra::find_path(config, {"trainer", "batch_size"});
+  ASSERT_TRUE(batch_size != nullptr);
+  ASSERT_TRUE(batch_size->is_int());
+  ASSERT_EQ(batch_size->as_int(), static_cast<int64_t>(64));
+
+  const hydra::ConfigNode* depth = hydra::find_path(config, {"model", "depth"});
+  ASSERT_TRUE(depth != nullptr);
+  ASSERT_TRUE(depth->is_int());
+  ASSERT_EQ(depth->as_int(), static_cast<int64_t>(101));
+}
+
+TEST_CASE(utils_write_hydra_outputs) {
+  fs::path config_path = "../../tests/configs/integration/simple.yaml";
+  if (!fs::exists(config_path)) {
+    return;
+  }
+
+  const char* argv[]       = {"test_program", nullptr};
+  hydra::ConfigNode config = hydra::utils::initialize(
+      1, const_cast<char**>(argv), config_path.string());
+
+  std::vector<std::string> overrides;
+  fs::path run_dir = hydra::utils::write_hydra_outputs(config, overrides);
+
+  // Check that run directory was created
+  ASSERT_TRUE(fs::exists(run_dir));
+  ASSERT_TRUE(fs::is_directory(run_dir));
+
+  // Check that .hydra subdirectory exists
+  fs::path hydra_dir = run_dir / ".hydra";
+  ASSERT_TRUE(fs::exists(hydra_dir));
+  ASSERT_TRUE(fs::is_directory(hydra_dir));
+
+  // Check that config.yaml exists
+  fs::path config_file = hydra_dir / "config.yaml";
+  ASSERT_TRUE(fs::exists(config_file));
+  ASSERT_TRUE(fs::is_regular_file(config_file));
+
+  // Clean up
+  fs::remove_all(run_dir);
 }
 
 int main() {

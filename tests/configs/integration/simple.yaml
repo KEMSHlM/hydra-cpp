@@ -1,0 +1,33 @@
+hydra:
+  job:
+    name: null  # Auto-derived from program name
+  run:
+    dir: ./test_outputs/${now:%Y-%m-%d_%H-%M-%S}
+  job_logging:
+    version: 1
+    handlers:
+      console: {}
+      file:
+        filename: ${hydra.run.dir}/${hydra.job.name}.log
+    root:
+      level: INFO
+      handlers: [console, file]
+
+database:
+  host: localhost
+  port: 5432
+  user: testuser
+
+model:
+  name: resnet
+  depth: 50
+  activation: relu
+
+trainer:
+  batch_size: 32
+  max_epochs: 10
+  learning_rate: 0.001
+
+experiment:
+  name: test_experiment
+  seed: 42

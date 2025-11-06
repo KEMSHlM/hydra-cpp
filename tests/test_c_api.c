@@ -7,7 +7,7 @@
 static void assert_status(const char* step, hydra_status_t status,
                           const char* error) {
   if (status != HYDRA_STATUS_OK) {
-    fprintf(stderr, "%s failed: %s\n", step, error ? error : "(unknown error)");
+    fprintf(stderr, "[FAIL] %s: %s\n", step, error ? error : "(unknown error)");
     hydra_string_free((char*)error);
     exit(1);
   }
@@ -19,7 +19,7 @@ static void assert_status(const char* step, hydra_status_t status,
 int main(void) {
   hydra_config_t* cfg = hydra_config_create();
   if (cfg == NULL) {
-    fprintf(stderr, "Failed to create config\n");
+    fprintf(stderr, "[FAIL] Failed to create config\n");
     return 1;
   }
 
@@ -41,14 +41,15 @@ int main(void) {
       hydra_config_get_int(cfg, "trainer.max_epochs", &epochs, &error), error);
 
   if (epochs != 32) {
-    fprintf(stderr, "Expected max_epochs=32 but got %lld\n", (long long)epochs);
+    fprintf(stderr, "[FAIL] Expected max_epochs=32 but got %lld\n",
+            (long long)epochs);
     hydra_config_destroy(cfg);
     return 1;
   }
 
   char* dump = hydra_config_to_yaml_string(cfg, &error);
   if (dump == NULL) {
-    fprintf(stderr, "Failed to render config: %s\n",
+    fprintf(stderr, "[FAIL] Failed to render config: %s\n",
             error ? error : "(unknown)");
     hydra_string_free(error);
     hydra_config_destroy(cfg);
@@ -56,7 +57,7 @@ int main(void) {
   }
 
   if (strstr(dump, "max_epochs: 32") == NULL) {
-    fprintf(stderr, "Rendered YAML missing override:\n%s\n", dump);
+    fprintf(stderr, "[FAIL] Rendered YAML missing override:\n%s\n", dump);
     hydra_string_free(dump);
     hydra_config_destroy(cfg);
     return 1;
@@ -64,5 +65,6 @@ int main(void) {
 
   hydra_string_free(dump);
   hydra_config_destroy(cfg);
+  printf("[OK] 1 tests passed\n");
   return 0;
 }

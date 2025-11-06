@@ -1,0 +1,25 @@
+hydra:
+  job:
+    name: env_test
+  run:
+    dir: ${oc.env:TEST_OUTPUT_DIR,./test_outputs}/${now:%Y-%m-%d_%H-%M-%S}
+  job_logging:
+    version: 1
+    handlers:
+      console: {}
+    root:
+      level: INFO
+      handlers: [console]
+
+database:
+  host: ${oc.env:DB_HOST,localhost}
+  port: ${oc.env:DB_PORT,5432}
+  user: ${oc.env:DB_USER,testuser}
+
+model:
+  name: ${oc.env:MODEL_NAME,vgg}
+  depth: 16
+
+trainer:
+  batch_size: ${oc.env:BATCH_SIZE,16}
+  max_epochs: 5

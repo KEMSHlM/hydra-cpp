@@ -1,0 +1,21 @@
+hydra:
+  job:
+    name: test_file
+  run:
+    dir: ./test_outputs/${now:%Y-%m-%d_%H-%M-%S}
+  job_logging:
+    version: 1
+    handlers:
+      file:
+        filename: ${hydra.run.dir}/${hydra.job.name}.log
+    root:
+      level: DEBUG
+      handlers: [file]
+
+model:
+  name: test_model
+  depth: 25
+
+trainer:
+  batch_size: 64
+  max_epochs: 2
