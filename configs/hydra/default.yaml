@@ -1,8 +1,10 @@
+job:
+  # Job name is automatically derived from the program name (argv[0])
+  # Override with: hydra.job.name=custom_name
+  name: null
+
 run:
   dir: ${paths.base_output_dir}/${now:%Y-%m-%d}_${now:%H-%M-%S}
-
-job:
-  name: app
 
 job_logging:
   version: 1
