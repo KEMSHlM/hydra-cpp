@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -12,6 +13,11 @@ typedef enum hydra_status {
   HYDRA_STATUS_OK    = 0,
   HYDRA_STATUS_ERROR = 1
 } hydra_status_t;
+
+typedef struct hydra_cli_overrides {
+  char** items;
+  size_t count;
+} hydra_cli_overrides_t;
 
 hydra_config_t* hydra_config_create(void);
 void hydra_config_destroy(hydra_config_t* config);
@@ -52,6 +58,19 @@ char* hydra_config_to_yaml_string(const hydra_config_t* config,
                                   char** error_message);
 
 void hydra_string_free(char* str);
+
+void hydra_cli_overrides_free(hydra_cli_overrides_t* overrides);
+
+hydra_status_t hydra_config_apply_cli(hydra_config_t* config, int argc,
+                                      char** argv, const char* default_config,
+                                      hydra_cli_overrides_t* captured_overrides,
+                                      char** error_message);
+
+hydra_status_t hydra_config_finalize_run(hydra_config_t* config,
+                                         const char* const* overrides,
+                                         size_t override_count,
+                                         char** run_dir_out,
+                                         char** error_message);
 
 #ifdef __cplusplus
 }

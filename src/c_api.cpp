@@ -1,6 +1,7 @@
 #include "hydra/c_api.h"
 
 #include "hydra/config_node.hpp"
+#include "hydra/config_utils.hpp"
 #include "hydra/interpolation.hpp"
 #include "hydra/overrides.hpp"
 #include "hydra/yaml_emitter.hpp"
@@ -150,6 +151,90 @@ int hydra_config_has(const hydra_config_t* config,
   } catch (...) {
     return 0;
   }
+}
+
+hydra_status_t hydra_config_apply_cli(hydra_config_t* config, int argc,
+                                      char** argv, const char* default_config,
+                                      hydra_cli_overrides_t* captured_overrides,
+                                      char** error_message) {
+  if (config == nullptr) {
+    assign_error(error_message, "Config is null");
+    return HYDRA_STATUS_ERROR;
+  }
+
+  if (error_message != nullptr) {
+    *error_message = nullptr;
+  }
+  if (captured_overrides != nullptr) {
+    captured_overrides->items = nullptr;
+    captured_overrides->count = 0;
+  }
+
+  std::vector<std::string> config_paths;
+  std::vector<std::string> overrides;
+  config_paths.reserve(static_cast<size_t>(argc));
+  overrides.reserve(static_cast<size_t>(argc));
+
+  for (int i = 1; i < argc; ++i) {
+    const char* arg = argv[i];
+    if (std::strncmp(arg, "--config=", 9) == 0) {
+      config_paths.emplace_back(arg + 9);
+    } else if (std::strcmp(arg, "--config") == 0 ||
+               std::strcmp(arg, "-c") == 0) {
+      if (i + 1 >= argc) {
+        assign_error(error_message, "--config requires an argument");
+        return HYDRA_STATUS_ERROR;
+      }
+      config_paths.emplace_back(argv[++i]);
+    } else {
+      overrides.emplace_back(arg);
+    }
+  }
+
+  if (config_paths.empty() && default_config != nullptr) {
+    config_paths.emplace_back(default_config);
+  }
+
+  for (const auto& path : config_paths) {
+    hydra_status_t status =
+        hydra_config_merge_file(config, path.c_str(), error_message);
+    if (status != HYDRA_STATUS_OK) {
+      return status;
+    }
+  }
+
+  for (const auto& expr : overrides) {
+    hydra_status_t status =
+        hydra_config_apply_override(config, expr.c_str(), error_message);
+    if (status != HYDRA_STATUS_OK) {
+      return status;
+    }
+  }
+
+  if (captured_overrides != nullptr && !overrides.empty()) {
+    captured_overrides->items =
+        static_cast<char**>(std::malloc(sizeof(char*) * overrides.size()));
+    if (captured_overrides->items == nullptr) {
+      assign_error(error_message, "Out of memory while capturing overrides");
+      return HYDRA_STATUS_ERROR;
+    }
+    captured_overrides->count = overrides.size();
+    for (size_t i = 0; i < overrides.size(); ++i) {
+      captured_overrides->items[i] = dup_string(overrides[i]);
+      if (captured_overrides->items[i] == nullptr) {
+        assign_error(error_message, "Out of memory while capturing overrides");
+        for (size_t j = 0; j < i; ++j) {
+          hydra_string_free(captured_overrides->items[j]);
+        }
+        std::free(captured_overrides->items);
+        captured_overrides->items = nullptr;
+        captured_overrides->count = 0;
+        return HYDRA_STATUS_ERROR;
+      }
+    }
+  }
+
+  return HYDRA_STATUS_OK;
 }
 
 hydra_status_t hydra_config_get_bool(const hydra_config_t* config,

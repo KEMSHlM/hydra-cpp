@@ -18,6 +18,8 @@
 - Runtime interpolation for config references, environment variables, and timestamps
 - Run directory management (`hydra.run.dir`) mirroring Hydra output layout (`.hydra/config.yaml`, `hydra.yaml`, `overrides.yaml`)
 - C API (`include/hydra/c_api.h`) for non-C++ consumers
+- CLI helper (`hydra_config_apply_cli`) to mirror Hydra-style `--config/-c` and override parsing in C
+- Convenience binding helpers (`hydra/c_api_utils.h`, `hydra/config_utils.hpp`) to extract strongly-typed values easily
 
 ### Quick Start
 
@@ -48,24 +50,37 @@ Interpolation fallback order:
 
 ```c
 #include "hydra/c_api.h"
+#include "hydra/c_api_utils.h"
 
 hydra_config_t *cfg = hydra_config_create();
 char *err = NULL;
+hydra_cli_overrides_t overrides = {0};
 
-hydra_config_merge_file(cfg, "configs/main.yaml", &err);
-hydra_config_apply_override(cfg, "model.depth=20", &err);
+hydra_config_apply_cli(cfg, argc, argv, "configs/main.yaml", &overrides, &err);
 
-int64_t depth = 0;
-hydra_config_get_int(cfg, "model.depth", &depth, &err);
+int64_t depth = hydra_config_expect_int(cfg, "model.depth");
 
-char *yaml = hydra_config_to_yaml_string(cfg, &err);
-puts(yaml);
+hydra_config_finalize_run(cfg,
+                          (const char *const *)overrides.items,
+                          overrides.count,
+                          NULL,
+                          &err);
+hydra_cli_overrides_free(&overrides);
 
-hydra_string_free(yaml);
 hydra_config_destroy(cfg);
 ```
 
-Intermediates (overrides, merges) trigger interpolation just before reads, so returned values are always resolved.
+#### Build the C Example
+
+```bash
+cmake --build build --target hydra-c-example
+./build/hydra-c-example --config configs/main.yaml trainer.batch_size=5
+
+cmake --build build --target hydra-cpp-example
+./build/hydra-cpp-example --config configs/main.yaml trainer.batch_size=12
+```
+
+Intermediates (overrides, merges) trigger interpolation just before reads, so returned values are always resolved. The bundled examples (`hydra-c-example`, `hydra-cpp-example`) demonstrate realistic usage by binding configuration data into domain structs, validating required keys via `hydra_config_expect_*` / `hydra::utils::expect_*`, and simulating a small workload.
 
 ### Tests
 
@@ -96,6 +111,8 @@ Unit tests cover override parsing, defaults composition, interpolation (includin
 - 設定値リファレンス・環境変数・時刻フォーマットを含む補間処理
 - Hydra と同じランタイム出力 (`hydra.run.dir` 以下に `.hydra/config.yaml` などを保存)
 - C API (`include/hydra/c_api.h`) による他言語連携
+- C API には Hydra 互換の CLI 解析ヘルパー `hydra_config_apply_cli` を用意
+- 設定値を扱いやすくするヘルパ (`hydra/c_api_utils.h`, `hydra/config_utils.hpp`) を同梱
 
 ### 使い方
 
@@ -126,24 +143,37 @@ cmake --build build
 
 ```c
 #include "hydra/c_api.h"
+#include "hydra/c_api_utils.h"
 
 hydra_config_t *cfg = hydra_config_create();
 char *err = NULL;
+hydra_cli_overrides_t overrides = {0};
 
-hydra_config_merge_file(cfg, "configs/main.yaml", &err);
-hydra_config_apply_override(cfg, "model.depth=20", &err);
+hydra_config_apply_cli(cfg, argc, argv, "configs/main.yaml", &overrides, &err);
 
-int64_t depth = 0;
-hydra_config_get_int(cfg, "model.depth", &depth, &err);
+int64_t depth = hydra_config_expect_int(cfg, "model.depth");
 
-char *yaml = hydra_config_to_yaml_string(cfg, &err);
-puts(yaml);
+hydra_config_finalize_run(cfg,
+                          (const char *const *)overrides.items,
+                          overrides.count,
+                          NULL,
+                          &err);
+hydra_cli_overrides_free(&overrides);
 
-hydra_string_free(yaml);
 hydra_config_destroy(cfg);
 ```
 
-読み取り前に補間が再解決されるので、取得値は常に展開後になります。
+#### C サンプルのビルド
+
+```bash
+cmake --build build --target hydra-c-example
+./build/hydra-c-example --config configs/main.yaml trainer.batch_size=5
+
+cmake --build build --target hydra-cpp-example
+./build/hydra-cpp-example --config configs/main.yaml trainer.batch_size=12
+```
+
+読み取り前に補間が再解決されるので、取得値は常に展開後になります。付属の `hydra-c-example` / `hydra-cpp-example` では `hydra_config_expect_*` や `hydra::utils::expect_*` を利用して構造体へ紐付ける実例を確認できます。
 
 ### テスト
 
