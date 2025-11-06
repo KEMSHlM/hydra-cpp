@@ -1,9 +1,11 @@
 #include "hydra/c_api.h"
 #include "hydra/c_api_utils.h"
+#include "hydra/logging.h"
 
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static void exit_on_error(const char* step, hydra_status_t status, char* err) {
   if (status == HYDRA_STATUS_OK) {
@@ -93,16 +95,15 @@ static void free_app_config(AppConfig* config) {
 }
 
 static void print_config_summary(const AppConfig* config) {
-  printf("=== hydra example (C API) ===\n");
-  printf("Experiment         : %s\n", config->experiment.name);
-  printf("Model              : %s (depth=%" PRId64 ", activation=%s)\n",
-         config->model.name, config->model.depth, config->model.activation);
-  printf("Trainer            : batch_size=%" PRId64 ", max_epochs=%" PRId64
-         "\n",
-         config->trainer.batch_size, config->trainer.max_epochs);
-  printf("Database endpoint  : %s (user=%s)\n", config->database.host,
-         config->database.user);
-  printf("hydra.run.dir      : %s\n", config->experiment.run_dir);
+  log_info("=== hydra example (C API) ===");
+  log_info("Experiment         : %s", config->experiment.name);
+  log_info("Model              : %s (depth=%" PRId64 ", activation=%s)",
+           config->model.name, config->model.depth, config->model.activation);
+  log_info("Trainer            : batch_size=%" PRId64 ", max_epochs=%" PRId64,
+           config->trainer.batch_size, config->trainer.max_epochs);
+  log_debug("Database endpoint  : %s (user=%s)", config->database.host,
+            config->database.user);
+  log_debug("hydra.run.dir      : %s", config->experiment.run_dir);
 }
 
 static void simulate_training_job(const AppConfig* config) {
@@ -111,16 +112,17 @@ static void simulate_training_job(const AppConfig* config) {
       (dataset_size + config->trainer.batch_size - 1) /
       (config->trainer.batch_size > 0 ? config->trainer.batch_size : 1);
 
-  printf("\n--- simulated training job ---\n");
+  log_info("--- simulated training job ---");
   for (int64_t epoch = 1; epoch <= config->trainer.max_epochs && epoch <= 3;
        ++epoch) {
-    printf("[epoch %" PRId64 "/%" PRId64 "] running %" PRId64 " steps\n", epoch,
-           config->trainer.max_epochs, steps_per_epoch);
+    log_info("Epoch %" PRId64 "/%" PRId64 " - running %" PRId64 " steps", epoch,
+             config->trainer.max_epochs, steps_per_epoch);
   }
   if (config->trainer.max_epochs > 3) {
-    printf("... (%" PRId64 " more epochs omitted) ...\n",
-           config->trainer.max_epochs - 3);
+    log_info("... (%" PRId64 " more epochs omitted) ...",
+             config->trainer.max_epochs - 3);
   }
+  log_info("Training completed successfully");
 }
 
 int main(int argc, char** argv) {
@@ -139,15 +141,17 @@ int main(int argc, char** argv) {
                 err);
   err = NULL;
 
+  /* Initialize logging from config (reads hydra.job_logging.root.level) */
+  exit_on_error("initialize logging", hydra_logging_init(cfg, &err), err);
+  err = NULL;
+
   AppConfig app = load_app_config(cfg);
 
   print_config_summary(&app);
   simulate_training_job(&app);
 
   /* Dump resolved configuration for inspection */
-  printf("\n--- resolved config ---\n");
-  exit_on_error("render config", hydra_config_stream_yaml(cfg, stdout, &err),
-                err);
+  exit_on_error("log config", hydra_logging_debug_config(cfg, &err), err);
 
   char* run_dir_path = NULL;
   exit_on_error("write hydra outputs",
@@ -156,7 +160,7 @@ int main(int argc, char** argv) {
                                           overrides.count, &run_dir_path, &err),
                 err);
   if (run_dir_path != NULL) {
-    printf("\n(Hydra outputs written under %s/.hydra)\n", run_dir_path);
+    log_info("Hydra outputs written under %s/.hydra", run_dir_path);
     hydra_string_free(run_dir_path);
   }
 

@@ -20,7 +20,7 @@
 - C API (`include/hydra/c_api.h`) for non-C++ consumers
 - CLI helper (`hydra_config_apply_cli`) to mirror Hydra-style `--config/-c` and override parsing in C
 - Convenience binding helpers (`hydra/c_api_utils.h`, `hydra/config_utils.hpp`) to extract strongly-typed values easily
-- Logging backends are not included; nodes such as `logging.level` are treated as plain configuration data
+- Integrated logging system powered by [rxi/log.c](https://github.com/rxi/log.c) with automatic configuration from `hydra.job_logging.root.level`
 
 ### Quick Start
 
@@ -127,6 +127,10 @@ Unit tests cover override parsing, defaults composition, interpolation (includin
 - The CLI enforces Hydra semantics: existing keys updated with `key=value`, new keys require `+key=value`.
 - To disable run directory creation for a run: `./build/hydra-cpp ... hydra.run.dir=null`.
 
+### Acknowledgments
+
+This project uses [rxi/log.c](https://github.com/rxi/log.c) for logging (MIT License).
+
 ### Contributing
 
 If you have suggestions or improvements, please open a pull request.
@@ -149,7 +153,7 @@ If you have suggestions or improvements, please open a pull request.
 - C API (`include/hydra/c_api.h`) による他言語連携
 - C API には Hydra 互換の CLI 解析ヘルパー `hydra_config_apply_cli` を用意
 - 設定値を扱いやすくするヘルパ (`hydra/c_api_utils.h`, `hydra/config_utils.hpp`) を同梱
-- ロギングバックエンドは提供していないため、`logging.*` の値はアプリ側で任意に活用してください
+- [rxi/log.c](https://github.com/rxi/log.c) を統合したロギングシステム。`hydra.job_logging.root.level` から自動設定
 
 ### 使い方
 
@@ -200,6 +204,10 @@ CLI 上書き、`defaults` マージ、補間（環境変数・現在時刻含�
 
 - `hydra.run.dir=null` を指定すると出力ディレクトリの生成を抑止できます。
 - 将来規模が大きくなる場合は `src/main.cpp` の責務分離や、補間処理の共通ユーティリティ化などリファクタリング余地があります。
+
+### 謝辞
+
+このプロジェクトは [rxi/log.c](https://github.com/rxi/log.c) をロギングに使用しています（MIT ライセンス）。
 
 ### 貢献
 

@@ -19,6 +19,8 @@ add_library(hydra-cpp-lib
     src/overrides.cpp
     src/c_api.cpp
     src/c_api_utils.cpp
+    src/log.c
+    src/logging.cpp
 )
 
 target_include_directories(hydra-cpp-lib
@@ -36,6 +38,11 @@ target_link_libraries(hydra-cpp-lib
 target_compile_options(hydra-cpp-lib
     PUBLIC
         ${LIBYAML_CFLAGS_OTHER}
+)
+
+target_compile_definitions(hydra-cpp-lib
+    PRIVATE
+        LOG_USE_COLOR
 )
 
 add_executable(hydra-cpp

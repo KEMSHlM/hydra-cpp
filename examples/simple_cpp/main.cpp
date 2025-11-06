@@ -1,6 +1,7 @@
 #include "hydra/config_node.hpp"
 #include "hydra/config_utils.hpp"
 #include "hydra/interpolation.hpp"
+#include "hydra/logging.hpp"
 #include "hydra/overrides.hpp"
 #include "hydra/yaml_emitter.hpp"
 #include "hydra/yaml_loader.hpp"
@@ -8,6 +9,7 @@
 #include <filesystem>
 #include <iostream>
 #include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -116,41 +118,48 @@ int main(int argc, char** argv) try {
                        hydra::make_string("cpp_example"), true);
   }
 
+  // Initialize logging from config
+  hydra::init_logging(config);
+
   fs::path run_dir_path =
       hydra::utils::write_hydra_outputs(config, cli.overrides);
 
+  // Auto-setup log file after run directory is created
+  hydra::setup_log_file(run_dir_path.string());
+
   AppConfig app = bind_config(config);
 
-  std::cout << "=== hydra example (C++) ===\n";
-  std::cout << "Experiment         : " << app.experiment.name << '\n';
-  std::cout << "Model              : " << app.model.name
-            << " (depth=" << app.model.depth
-            << ", activation=" << app.model.activation << ")\n";
-  std::cout << "Trainer            : batch_size=" << app.trainer.batch_size
-            << ", max_epochs=" << app.trainer.max_epochs << '\n';
-  std::cout << "Database endpoint  : " << app.database.host
-            << " (port=" << app.database.port << ", user=" << app.database.user
-            << ")\n";
-  std::cout << "hydra.run.dir      : " << app.experiment.run_dir << '\n';
+  log_info("=== hydra example (C++) ===");
+  log_info("Experiment         : %s", app.experiment.name.c_str());
+  log_info("Model              : %s (depth=%ld, activation=%s)",
+           app.model.name.c_str(), app.model.depth,
+           app.model.activation.c_str());
+  log_info("Trainer            : batch_size=%ld, max_epochs=%ld",
+           app.trainer.batch_size, app.trainer.max_epochs);
+  log_debug("Database endpoint  : %s (port=%ld, user=%s)",
+            app.database.host.c_str(), app.database.port,
+            app.database.user.c_str());
+  log_debug("hydra.run.dir      : %s", app.experiment.run_dir.c_str());
 
-  std::cout << "\n--- simulated training job ---\n";
+  log_info("--- simulated training job ---");
   const int64_t dataset_size = 512;
   const int64_t steps_per_epoch =
       (dataset_size + app.trainer.batch_size - 1) /
       (app.trainer.batch_size > 0 ? app.trainer.batch_size : 1);
   for (int epoch = 1; epoch <= app.trainer.max_epochs && epoch <= 3; ++epoch) {
-    std::cout << "[epoch " << epoch << "/" << app.trainer.max_epochs
-              << "] running " << steps_per_epoch << " steps\n";
+    log_info("Epoch %d/%ld - running %ld steps", epoch,
+             app.trainer.max_epochs, steps_per_epoch);
   }
   if (app.trainer.max_epochs > 3) {
-    std::cout << "... (" << (app.trainer.max_epochs - 3)
-              << " more epochs omitted) ...\n";
+    log_info("... (%ld more epochs omitted) ...",
+             app.trainer.max_epochs - 3);
   }
+  log_info("Training completed successfully");
 
-  std::cout << "\n--- resolved config ---\n";
-  hydra::utils::write_yaml(std::cout, config);
-  std::cout << "\n(Hydra outputs written under " << run_dir_path
-            << "/.hydra)\n";
+  hydra::log_config(config);
+
+  log_info("Hydra outputs written under %s/.hydra",
+           run_dir_path.string().c_str());
 
   return 0;
 } catch (const std::exception& ex) {
