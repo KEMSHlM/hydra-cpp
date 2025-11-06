@@ -8,5 +8,3 @@ trainer:
   batch_size: 32
   max_epochs: 10
 
-logging:
-  level: info

@@ -26,9 +26,7 @@ int main(void) {
   char* error      = NULL;
   const char* yaml = "trainer:\n"
                      "  batch_size: 16\n"
-                     "  max_epochs: 10\n"
-                     "logging:\n"
-                     "  level: info\n";
+                     "  max_epochs: 10\n";
 
   assert_status("merge string",
                 hydra_config_merge_string(cfg, yaml, "inline", &error), error);

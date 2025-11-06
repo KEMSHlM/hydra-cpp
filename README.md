@@ -20,6 +20,7 @@
 - C API (`include/hydra/c_api.h`) for non-C++ consumers
 - CLI helper (`hydra_config_apply_cli`) to mirror Hydra-style `--config/-c` and override parsing in C
 - Convenience binding helpers (`hydra/c_api_utils.h`, `hydra/config_utils.hpp`) to extract strongly-typed values easily
+- Logging backends are not included; nodes such as `logging.level` are treated as plain configuration data
 
 ### Quick Start
 
@@ -70,6 +71,37 @@ hydra_cli_overrides_free(&overrides);
 hydra_config_destroy(cfg);
 ```
 
+### C++ API Usage
+
+```cpp
+#include "hydra/config_utils.hpp"
+#include "hydra/interpolation.hpp"
+#include "hydra/overrides.hpp"
+#include "hydra/yaml_loader.hpp"
+
+int main(int argc, char** argv) {
+    hydra::ConfigNode config = hydra::make_mapping();
+    hydra::ConfigNode file_cfg = hydra::load_yaml_file("configs/main.yaml");
+    hydra::merge(config, file_cfg);
+
+    for (int i = 1; i < argc; ++i) {
+        hydra::Override ov = hydra::parse_override(argv[i]);
+        hydra::assign_path(config, ov.path, std::move(ov.value), ov.require_new);
+    }
+
+    hydra::resolve_interpolations(config);
+
+    std::vector<std::string> overrides(argv + 1, argv + argc);
+    std::filesystem::path run_dir = hydra::utils::write_hydra_outputs(config, overrides);
+
+    std::string model = hydra::utils::expect_string(config, {"model", "name"});
+    int64_t batch = hydra::utils::expect_int(config, {"trainer", "batch_size"});
+
+    std::cout << "Model: " << model << " (batch=" << batch << ")\n";
+    std::cout << "(Hydra outputs under " << run_dir << "/.hydra)\n";
+}
+```
+
 #### Build the C Example
 
 ```bash
@@ -113,6 +145,7 @@ Unit tests cover override parsing, defaults composition, interpolation (includin
 - C API (`include/hydra/c_api.h`) による他言語連携
 - C API には Hydra 互換の CLI 解析ヘルパー `hydra_config_apply_cli` を用意
 - 設定値を扱いやすくするヘルパ (`hydra/c_api_utils.h`, `hydra/config_utils.hpp`) を同梱
+- ロギングバックエンドは提供していないため、`logging.*` の値はアプリ側で任意に活用してください
 
 ### 使い方
 
@@ -138,30 +171,6 @@ cmake --build build
 1. `${path.to.node}` – 他設定値の参照
 2. `${oc.env:VAR,default}` – 環境変数 + フォールバック
 3. `${now:%...}` – `strftime` フォーマットでの時刻文字列
-
-### C API 利用例
-
-```c
-#include "hydra/c_api.h"
-#include "hydra/c_api_utils.h"
-
-hydra_config_t *cfg = hydra_config_create();
-char *err = NULL;
-hydra_cli_overrides_t overrides = {0};
-
-hydra_config_apply_cli(cfg, argc, argv, "configs/main.yaml", &overrides, &err);
-
-int64_t depth = hydra_config_expect_int(cfg, "model.depth");
-
-hydra_config_finalize_run(cfg,
-                          (const char *const *)overrides.items,
-                          overrides.count,
-                          NULL,
-                          &err);
-hydra_cli_overrides_free(&overrides);
-
-hydra_config_destroy(cfg);
-```
 
 #### C サンプルのビルド
 

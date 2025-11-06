@@ -114,12 +114,12 @@ TEST_CASE(override_parsing_basic) {
 }
 
 TEST_CASE(override_parsing_new_key) {
-  hydra::Override ov = hydra::parse_override("+logging.level=debug");
+  hydra::Override ov = hydra::parse_override("+trainer.schedule=[1,2,3]");
   ASSERT_EQ(ov.path.size(), static_cast<size_t>(2));
-  ASSERT_EQ(ov.path[0], std::string("logging"));
-  ASSERT_EQ(ov.path[1], std::string("level"));
-  ASSERT_TRUE(ov.value.is_string());
-  ASSERT_EQ(ov.value.as_string(), std::string("debug"));
+  ASSERT_EQ(ov.path[0], std::string("trainer"));
+  ASSERT_EQ(ov.path[1], std::string("schedule"));
+  ASSERT_TRUE(ov.value.is_sequence());
+  ASSERT_EQ(ov.value.as_sequence().size(), static_cast<size_t>(3));
   ASSERT_TRUE(ov.require_new);
 }
 
