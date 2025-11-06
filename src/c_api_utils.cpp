@@ -146,11 +146,10 @@ void hydra_cli_overrides_free(hydra_cli_overrides_t* overrides) {
   overrides->count = 0;
 }
 
-hydra_status_t hydra_config_finalize_run(hydra_config_t* config,
-                                         const char* const* overrides,
-                                         size_t override_count,
-                                         char** run_dir_out,
-                                         char** error_message) {
+hydra_status_t hydra_write_outputs(hydra_config_t* config,
+                                   const char* const* overrides,
+                                   size_t override_count, char** run_dir_out,
+                                   char** error_message) {
   if (run_dir_out) {
     *run_dir_out = nullptr;
   }
@@ -174,6 +173,37 @@ hydra_status_t hydra_config_finalize_run(hydra_config_t* config,
   } catch (const std::exception& ex) {
     set_error(error_message, ex.what());
     return HYDRA_STATUS_ERROR;
+  }
+}
+
+hydra_config_t* hydra_initialize(int argc, char** argv,
+                                 const char* default_config,
+                                 char** error_message) {
+  if (default_config == nullptr) {
+    set_error(error_message, "default_config is null");
+    return nullptr;
+  }
+
+  try {
+    // Use C++ utility function for initialization
+    hydra::ConfigNode config =
+        hydra::utils::initialize(argc, argv, default_config);
+
+    // Wrap in C API structure
+    hydra_config_t* result =
+        static_cast<hydra_config_t*>(std::malloc(sizeof(hydra_config_t)));
+    if (result == nullptr) {
+      set_error(error_message, "Failed to allocate config object");
+      return nullptr;
+    }
+
+    // Move construct the ConfigNode into the C structure
+    new (&result->node) hydra::ConfigNode(std::move(config));
+
+    return result;
+  } catch (const std::exception& ex) {
+    set_error(error_message, ex.what());
+    return nullptr;
   }
 }
 

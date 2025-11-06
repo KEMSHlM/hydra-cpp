@@ -126,30 +126,26 @@ static void simulate_training_job(const AppConfig* config) {
 }
 
 int main(int argc, char** argv) {
-  hydra_config_t* cfg = hydra_config_create();
-  if (cfg == NULL) {
-    fprintf(stderr, "[hydra-example] failed to create hydra config\n");
-    return EXIT_FAILURE;
-  }
+  char* err = NULL;
 
-  char* err                       = NULL;
-  hydra_cli_overrides_t overrides = {0};
-
-  exit_on_error("apply CLI arguments",
-                hydra_config_apply_cli(cfg, argc, argv, "configs/main.yaml",
-                                       &overrides, &err),
+  /* Initialize Hydra configuration (loads config, applies overrides, resolves
+   * interpolations) */
+  hydra_config_t* cfg = hydra_initialize(argc, argv, "configs/main.yaml", &err);
+  exit_on_error("initialize Hydra", cfg ? HYDRA_STATUS_OK : HYDRA_STATUS_ERROR,
                 err);
   err = NULL;
 
+  /* Set default experiment name if not specified */
+  ensure_experiment_name(cfg);
+
+  /* Write Hydra outputs (.hydra directory with configs) */
   char* run_dir_path = NULL;
   exit_on_error("write hydra outputs",
-                hydra_config_finalize_run(cfg,
-                                          (const char* const*)overrides.items,
-                                          overrides.count, &run_dir_path, &err),
-                err);
+                hydra_write_outputs(cfg, NULL, 0, &run_dir_path, &err), err);
+  err = NULL;
 
-  /* Initialize logging after run directory is created */
-  exit_on_error("initialize logging", hydra_logging_init(cfg, &err), err);
+  /* Initialize logging (console + file based on config) */
+  exit_on_error("initialize logging", hydra_init_logging(cfg, &err), err);
   err = NULL;
 
   AppConfig app = load_app_config(cfg);
@@ -158,14 +154,13 @@ int main(int argc, char** argv) {
   simulate_training_job(&app);
 
   /* Dump resolved configuration for inspection */
-  exit_on_error("log config", hydra_logging_debug_config(cfg, &err), err);
+  exit_on_error("log config", hydra_log_config(cfg, &err), err);
   if (run_dir_path != NULL) {
     log_info("Hydra outputs written under %s/.hydra", run_dir_path);
     hydra_string_free(run_dir_path);
   }
 
   free_app_config(&app);
-  hydra_cli_overrides_free(&overrides);
   hydra_config_destroy(cfg);
 
   return EXIT_SUCCESS;

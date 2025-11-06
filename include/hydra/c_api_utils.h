@@ -20,6 +20,21 @@ hydra_status_t hydra_config_write_yaml(hydra_config_t* config, const char* path,
 hydra_status_t hydra_config_stream_yaml(hydra_config_t* config, FILE* stream,
                                         char** error_message);
 
+/**
+ * Initialize Hydra configuration from command-line arguments (simplified API).
+ * Combines: config creation, CLI parsing, override application, job.name
+ * derivation, and interpolation resolution.
+ *
+ * @param argc Argument count from main()
+ * @param argv Argument vector from main()
+ * @param default_config Default config file path (e.g., "configs/main.yaml")
+ * @param error_message Output parameter for error message (if any)
+ * @return Config object on success, NULL on failure
+ */
+hydra_config_t* hydra_initialize(int argc, char** argv,
+                                 const char* default_config,
+                                 char** error_message);
+
 #ifdef __cplusplus
 }
 #endif

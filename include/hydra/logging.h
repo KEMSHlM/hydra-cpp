@@ -20,7 +20,7 @@ extern "C" {
  * @param error_message Optional pointer to receive error message
  * @return HYDRA_STATUS_OK on success, HYDRA_STATUS_ERROR on failure
  */
-hydra_status_t hydra_logging_init(const hydra_config_t* config,
+hydra_status_t hydra_init_logging(const hydra_config_t* config,
                                   char** error_message);
 
 /**
@@ -33,8 +33,8 @@ hydra_status_t hydra_logging_init(const hydra_config_t* config,
  * @param error_message Optional pointer to receive error message
  * @return HYDRA_STATUS_OK on success, HYDRA_STATUS_ERROR on failure
  */
-hydra_status_t hydra_logging_debug_config(const hydra_config_t* config,
-                                          char** error_message);
+hydra_status_t hydra_log_config(const hydra_config_t* config,
+                                char** error_message);
 
 /**
  * Setup log file output to ${run_dir}/.hydra/job.log

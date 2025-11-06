@@ -66,11 +66,21 @@ hydra_status_t hydra_config_apply_cli(hydra_config_t* config, int argc,
                                       hydra_cli_overrides_t* captured_overrides,
                                       char** error_message);
 
-hydra_status_t hydra_config_finalize_run(hydra_config_t* config,
-                                         const char* const* overrides,
-                                         size_t override_count,
-                                         char** run_dir_out,
-                                         char** error_message);
+/**
+ * Write Hydra outputs (.hydra directory with configs).
+ * Creates ${hydra.run.dir}/.hydra and writes configuration files.
+ *
+ * @param config Configuration object
+ * @param overrides Array of override strings to save
+ * @param override_count Number of overrides
+ * @param run_dir_out Output parameter for run directory path
+ * @param error_message Output parameter for error message
+ * @return HYDRA_STATUS_OK on success
+ */
+hydra_status_t hydra_write_outputs(hydra_config_t* config,
+                                   const char* const* overrides,
+                                   size_t override_count, char** run_dir_out,
+                                   char** error_message);
 
 #ifdef __cplusplus
 }

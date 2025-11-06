@@ -50,55 +50,63 @@ Interpolation fallback order:
 ### C API Usage
 
 ```c
-#include "hydra/c_api.h"
 #include "hydra/c_api_utils.h"
+#include "hydra/logging.h"
 
-hydra_config_t *cfg = hydra_config_create();
-char *err = NULL;
-hydra_cli_overrides_t overrides = {0};
+int main(int argc, char** argv) {
+    char* err = NULL;
 
-hydra_config_apply_cli(cfg, argc, argv, "configs/main.yaml", &overrides, &err);
+    // Initialize Hydra (loads config, applies overrides, resolves interpolations)
+    hydra_config_t* cfg = hydra_initialize(argc, argv, "configs/main.yaml", &err);
 
-int64_t depth = hydra_config_expect_int(cfg, "model.depth");
+    // Write Hydra outputs (.hydra directory)
+    char* run_dir = NULL;
+    hydra_write_outputs(cfg, NULL, 0, &run_dir, &err);
 
-hydra_config_finalize_run(cfg,
-                          (const char *const *)overrides.items,
-                          overrides.count,
-                          NULL,
-                          &err);
-hydra_cli_overrides_free(&overrides);
+    // Initialize logging
+    hydra_init_logging(cfg, &err);
 
-hydra_config_destroy(cfg);
+    // Access configuration values
+    int64_t depth = hydra_config_expect_int(cfg, "model.depth");
+
+    // ... application logic ...
+
+    hydra_log_config(cfg, &err);
+    hydra_string_free(run_dir);
+    hydra_config_destroy(cfg);
+
+    return 0;
+}
 ```
 
 ### C++ API Usage
 
 ```cpp
 #include "hydra/config_utils.hpp"
-#include "hydra/interpolation.hpp"
-#include "hydra/overrides.hpp"
-#include "hydra/yaml_loader.hpp"
+#include "hydra/logging.hpp"
 
-int main(int argc, char** argv) {
-    hydra::ConfigNode config = hydra::make_mapping();
-    hydra::ConfigNode file_cfg = hydra::load_yaml_file("configs/main.yaml");
-    hydra::merge(config, file_cfg);
+int main(int argc, char** argv) try {
+    // Initialize Hydra (loads config, applies overrides, resolves interpolations)
+    hydra::ConfigNode config = hydra::utils::initialize(argc, argv);
 
-    for (int i = 1; i < argc; ++i) {
-        hydra::Override ov = hydra::parse_override(argv[i]);
-        hydra::assign_path(config, ov.path, std::move(ov.value), ov.require_new);
-    }
+    // Write Hydra outputs (.hydra directory)
+    std::filesystem::path run_dir = hydra::utils::write_hydra_outputs(config, {});
 
-    hydra::resolve_interpolations(config);
+    // Initialize logging
+    hydra::init_logging(config);
 
-    std::vector<std::string> overrides(argv + 1, argv + argc);
-    std::filesystem::path run_dir = hydra::utils::write_hydra_outputs(config, overrides);
-
+    // Access configuration values
     std::string model = hydra::utils::expect_string(config, {"model", "name"});
     int64_t batch = hydra::utils::expect_int(config, {"trainer", "batch_size"});
 
-    std::cout << "Model: " << model << " (batch=" << batch << ")\n";
-    std::cout << "(Hydra outputs under " << run_dir << "/.hydra)\n";
+    log_info("Model: %s (batch=%ld)", model.c_str(), batch);
+
+    hydra::log_config(config);
+
+    return 0;
+} catch (const std::exception& ex) {
+    std::cerr << "Error: " << ex.what() << "\n";
+    return 1;
 }
 ```
 

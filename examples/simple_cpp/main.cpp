@@ -63,24 +63,14 @@ AppConfig bind_config(const hydra::ConfigNode& root) {
   return cfg;
 }
 
-int main(int argc, char** argv) try {
-  // Initialize Hydra configuration (loads config, applies overrides, resolves interpolations)
-  hydra::ConfigNode config = hydra::utils::initialize(argc, argv);
-
-  // Set default experiment name if not specified
+static void ensure_experiment_name(hydra::ConfigNode& config) {
   if (!hydra::utils::has_node(config, {"experiment", "name"})) {
     hydra::assign_path(config, {"experiment", "name"},
                        hydra::make_string("cpp_example"), true);
   }
+}
 
-  // Write Hydra outputs (.hydra directory with configs)
-  fs::path run_dir_path = hydra::utils::write_hydra_outputs(config, {});
-
-  // Initialize logging (console + file based on config)
-  hydra::init_logging(config);
-
-  AppConfig app = bind_config(config);
-
+static void print_config_summary(const AppConfig& app) {
   log_info("=== hydra example (C++) ===");
   log_info("Experiment         : %s", app.experiment.name.c_str());
   log_info("Model              : %s (depth=%" PRId64 ", activation=%s)",
@@ -92,12 +82,15 @@ int main(int argc, char** argv) try {
             app.database.host.c_str(), app.database.port,
             app.database.user.c_str());
   log_debug("hydra.run.dir      : %s", app.experiment.run_dir.c_str());
+}
 
-  log_info("--- simulated training job ---");
+static void simulate_training_job(const AppConfig& app) {
   const int64_t dataset_size = 512;
   const int64_t steps_per_epoch =
       (dataset_size + app.trainer.batch_size - 1) /
       (app.trainer.batch_size > 0 ? app.trainer.batch_size : 1);
+
+  log_info("--- simulated training job ---");
   for (int epoch = 1; epoch <= app.trainer.max_epochs && epoch <= 3; ++epoch) {
     log_info("Epoch %d/%" PRId64 " - running %" PRId64 " steps", epoch,
              app.trainer.max_epochs, steps_per_epoch);
@@ -107,9 +100,29 @@ int main(int argc, char** argv) try {
              app.trainer.max_epochs - 3);
   }
   log_info("Training completed successfully");
+}
 
+int main(int argc, char** argv) try {
+  /* Initialize Hydra configuration (loads config, applies overrides, resolves
+   * interpolations) */
+  hydra::ConfigNode config = hydra::utils::initialize(argc, argv);
+
+  /* Set default experiment name if not specified */
+  ensure_experiment_name(config);
+
+  /* Write Hydra outputs (.hydra directory with configs) */
+  fs::path run_dir_path = hydra::utils::write_hydra_outputs(config, {});
+
+  /* Initialize logging (console + file based on config) */
+  hydra::init_logging(config);
+
+  AppConfig app = bind_config(config);
+
+  print_config_summary(app);
+  simulate_training_job(app);
+
+  /* Dump resolved configuration for inspection */
   hydra::log_config(config);
-
   log_info("Hydra outputs written under %s/.hydra",
            run_dir_path.string().c_str());
 

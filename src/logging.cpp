@@ -200,7 +200,7 @@ void hydra::setup_log_file(const std::string& run_dir) {
 }
 
 // C API
-extern "C" hydra_status_t hydra_logging_init(const hydra_config_t* config,
+extern "C" hydra_status_t hydra_init_logging(const hydra_config_t* config,
                                              char** error_message) {
   if (config == nullptr) {
     assign_error(error_message, "Config is null");
@@ -221,8 +221,8 @@ extern "C" hydra_status_t hydra_logging_init(const hydra_config_t* config,
   }
 }
 
-extern "C" hydra_status_t
-hydra_logging_debug_config(const hydra_config_t* config, char** error_message) {
+extern "C" hydra_status_t hydra_log_config(const hydra_config_t* config,
+                                           char** error_message) {
   if (config == nullptr) {
     assign_error(error_message, "Config is null");
     return HYDRA_STATUS_ERROR;
