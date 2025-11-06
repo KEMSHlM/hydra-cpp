@@ -1,0 +1,7 @@
+.clang*
+.cmake*
+.claude/
+build/
+outputs/
+test_outputs/
+Testing/

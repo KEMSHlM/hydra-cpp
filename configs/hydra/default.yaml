@@ -1,0 +1,2 @@
+run:
+  dir: ${paths.base_output_dir}/${now:%Y-%m-%d}_${now:%H-%M-%S}

@@ -1,0 +1,4 @@
+root_dir: ${oc.env:PROJECT_ROOT,.}
+
+# path to base outputs directory
+base_output_dir: ${paths.root_dir}/outputs
