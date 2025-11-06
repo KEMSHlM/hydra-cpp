@@ -5,6 +5,7 @@
 #include "hydra/config_utils.hpp"
 #include "hydra/log.h"
 
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <sstream>
@@ -20,6 +21,7 @@ namespace {
 
 FILE* log_file_handle = nullptr;
 std::string current_log_file_path;
+int log_file_callback_index = -1;  // Track registered callback index
 
 int parse_log_level(const char* level_str) {
   if (level_str == nullptr) {
@@ -59,7 +61,12 @@ int parse_log_level(const char* level_str) {
 
 void assign_error(char** error_message, const std::string& msg) {
   if (error_message != nullptr) {
-    *error_message = strdup(msg.c_str());
+    size_t len = msg.length();
+    char* copy = static_cast<char*>(std::malloc(len + 1));
+    if (copy != nullptr) {
+      std::memcpy(copy, msg.c_str(), len + 1);
+    }
+    *error_message = copy;
   }
 }
 
@@ -146,8 +153,11 @@ void hydra::init_logging(const ConfigNode& config) {
         log_file_handle = std::fopen(log_path.string().c_str(), "w");
         if (log_file_handle != nullptr) {
           current_log_file_path = log_path.string();
-          // Add file to log.c callbacks
-          log_add_fp(log_file_handle, LOG_TRACE);
+          // Add file callback only on first initialization
+          // (log.c doesn't provide callback removal, so we reuse the same callback)
+          if (log_file_callback_index < 0) {
+            log_file_callback_index = log_add_fp(log_file_handle, LOG_TRACE);
+          }
         }
       }
     } catch (...) {
@@ -271,8 +281,11 @@ extern "C" hydra_status_t hydra_logging_setup_file(const char* run_dir,
       return HYDRA_STATUS_ERROR;
     }
 
-    // Add file to log.c callbacks
-    log_add_fp(log_file_handle, LOG_TRACE);
+    // Add file callback only on first initialization
+    // (log.c doesn't provide callback removal, so we reuse the same callback)
+    if (log_file_callback_index < 0) {
+      log_file_callback_index = log_add_fp(log_file_handle, LOG_TRACE);
+    }
 
     return HYDRA_STATUS_OK;
   } catch (const std::exception& ex) {

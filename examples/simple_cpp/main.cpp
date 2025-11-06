@@ -2,6 +2,7 @@
 #include "hydra/config_utils.hpp"
 #include "hydra/logging.hpp"
 
+#include <cinttypes>
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
@@ -82,12 +83,12 @@ int main(int argc, char** argv) try {
 
   log_info("=== hydra example (C++) ===");
   log_info("Experiment         : %s", app.experiment.name.c_str());
-  log_info("Model              : %s (depth=%ld, activation=%s)",
+  log_info("Model              : %s (depth=%" PRId64 ", activation=%s)",
            app.model.name.c_str(), app.model.depth,
            app.model.activation.c_str());
-  log_info("Trainer            : batch_size=%ld, max_epochs=%ld",
+  log_info("Trainer            : batch_size=%" PRId64 ", max_epochs=%" PRId64,
            app.trainer.batch_size, app.trainer.max_epochs);
-  log_debug("Database endpoint  : %s (port=%ld, user=%s)",
+  log_debug("Database endpoint  : %s (port=%" PRId64 ", user=%s)",
             app.database.host.c_str(), app.database.port,
             app.database.user.c_str());
   log_debug("hydra.run.dir      : %s", app.experiment.run_dir.c_str());
@@ -98,11 +99,11 @@ int main(int argc, char** argv) try {
       (dataset_size + app.trainer.batch_size - 1) /
       (app.trainer.batch_size > 0 ? app.trainer.batch_size : 1);
   for (int epoch = 1; epoch <= app.trainer.max_epochs && epoch <= 3; ++epoch) {
-    log_info("Epoch %d/%ld - running %ld steps", epoch,
+    log_info("Epoch %d/%" PRId64 " - running %" PRId64 " steps", epoch,
              app.trainer.max_epochs, steps_per_epoch);
   }
   if (app.trainer.max_epochs > 3) {
-    log_info("... (%ld more epochs omitted) ...",
+    log_info("... (%" PRId64 " more epochs omitted) ...",
              app.trainer.max_epochs - 3);
   }
   log_info("Training completed successfully");
