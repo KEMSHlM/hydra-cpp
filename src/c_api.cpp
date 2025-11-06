@@ -240,17 +240,19 @@ hydra_status_t hydra_config_apply_cli(hydra_config_t* config, int argc,
     const hydra::ConfigNode* job_name_node =
         hydra::find_path(config->node, {"hydra", "job", "name"});
     if (!job_name_node || job_name_node->is_null()) {
-      std::string job_name = "app";  // default fallback
+      std::string job_name = "app"; // default fallback
       if (argc > 0 && argv != nullptr && argv[0] != nullptr) {
-        // Extract basename from argv[0] (e.g., "./build/hydra-cpp-example" -> "hydra-cpp-example")
+        // Extract basename from argv[0] (e.g., "./build/hydra-cpp-example" ->
+        // "hydra-cpp-example")
         std::filesystem::path prog_path = argv[0];
-        job_name = prog_path.filename().string();
+        job_name                        = prog_path.filename().string();
       }
       hydra::assign_path(config->node, {"hydra", "job", "name"},
                          hydra::make_string(job_name), false);
     }
   } catch (const std::exception& ex) {
-    assign_error(error_message, std::string("Failed to set job name: ") + ex.what());
+    assign_error(error_message,
+                 std::string("Failed to set job name: ") + ex.what());
     return HYDRA_STATUS_ERROR;
   }
 
@@ -258,7 +260,8 @@ hydra_status_t hydra_config_apply_cli(hydra_config_t* config, int argc,
   try {
     hydra::resolve_interpolations(config->node);
   } catch (const std::exception& ex) {
-    assign_error(error_message, std::string("Failed to resolve interpolations: ") + ex.what());
+    assign_error(error_message,
+                 std::string("Failed to resolve interpolations: ") + ex.what());
     return HYDRA_STATUS_ERROR;
   }
 

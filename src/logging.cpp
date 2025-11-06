@@ -1,9 +1,9 @@
 #include "hydra/logging.h"
-#include "hydra/logging.hpp"
 
 #include "hydra/config_node.hpp"
 #include "hydra/config_utils.hpp"
 #include "hydra/log.h"
+#include "hydra/logging.hpp"
 
 #include <cstdlib>
 #include <cstring>
@@ -21,7 +21,7 @@ namespace {
 
 FILE* log_file_handle = nullptr;
 std::string current_log_file_path;
-int log_file_callback_index = -1;  // Track registered callback index
+int log_file_callback_index = -1; // Track registered callback index
 
 int parse_log_level(const char* level_str) {
   if (level_str == nullptr) {
@@ -70,7 +70,7 @@ void assign_error(char** error_message, const std::string& msg) {
   }
 }
 
-}  // namespace
+} // namespace
 
 // C++ API
 void hydra::init_logging(const ConfigNode& config) {
@@ -115,20 +115,24 @@ void hydra::init_logging(const ConfigNode& config) {
     try {
       // Read filename from config (hydra.job_logging.handlers.file.filename)
       std::string log_path_str;
-      const ConfigNode* filename_node =
-          find_path(config, {"hydra", "job_logging", "handlers", "file", "filename"});
+      const ConfigNode* filename_node = find_path(
+          config, {"hydra", "job_logging", "handlers", "file", "filename"});
 
       if (filename_node && filename_node->is_string()) {
         log_path_str = filename_node->as_string();
       } else {
         // Default filename if not specified
-        const ConfigNode* run_dir_node = find_path(config, {"hydra", "run", "dir"});
-        const ConfigNode* job_name_node = find_path(config, {"hydra", "job", "name"});
+        const ConfigNode* run_dir_node =
+            find_path(config, {"hydra", "run", "dir"});
+        const ConfigNode* job_name_node =
+            find_path(config, {"hydra", "job", "name"});
 
-        std::string run_dir = run_dir_node && run_dir_node->is_string()
-                              ? run_dir_node->as_string() : ".";
+        std::string run_dir  = run_dir_node && run_dir_node->is_string()
+                                   ? run_dir_node->as_string()
+                                   : ".";
         std::string job_name = job_name_node && job_name_node->is_string()
-                               ? job_name_node->as_string() : "app";
+                                   ? job_name_node->as_string()
+                                   : "app";
 
         log_path_str = run_dir + "/" + job_name + ".log";
       }
@@ -137,7 +141,8 @@ void hydra::init_logging(const ConfigNode& config) {
         fs::path log_path = log_path_str;
 
         // Skip if already logging to the same file
-        if (log_file_handle != nullptr && current_log_file_path == log_path.string()) {
+        if (log_file_handle != nullptr &&
+            current_log_file_path == log_path.string()) {
           // Already logging to this file, nothing to do
           return;
         }
@@ -154,7 +159,8 @@ void hydra::init_logging(const ConfigNode& config) {
         if (log_file_handle != nullptr) {
           current_log_file_path = log_path.string();
           // Add file callback only on first initialization
-          // (log.c doesn't provide callback removal, so we reuse the same callback)
+          // (log.c doesn't provide callback removal, so we reuse the same
+          // callback)
           if (log_file_callback_index < 0) {
             log_file_callback_index = log_add_fp(log_file_handle, LOG_TRACE);
           }
@@ -215,8 +221,8 @@ extern "C" hydra_status_t hydra_logging_init(const hydra_config_t* config,
   }
 }
 
-extern "C" hydra_status_t hydra_logging_debug_config(
-    const hydra_config_t* config, char** error_message) {
+extern "C" hydra_status_t
+hydra_logging_debug_config(const hydra_config_t* config, char** error_message) {
   if (config == nullptr) {
     assign_error(error_message, "Config is null");
     return HYDRA_STATUS_ERROR;
@@ -253,7 +259,7 @@ extern "C" hydra_status_t hydra_logging_debug_config(
 }
 
 extern "C" hydra_status_t hydra_logging_setup_file(const char* run_dir,
-                                                    char** error_message) {
+                                                   char** error_message) {
   if (run_dir == nullptr) {
     assign_error(error_message, "Run directory is null");
     return HYDRA_STATUS_ERROR;
@@ -265,7 +271,7 @@ extern "C" hydra_status_t hydra_logging_setup_file(const char* run_dir,
 
   try {
     fs::path run_path = run_dir;
-    fs::path log_path = run_path / "app.log";  // Default to app.log
+    fs::path log_path = run_path / "app.log"; // Default to app.log
 
     // Close existing log file if any
     if (log_file_handle != nullptr) {
@@ -289,8 +295,8 @@ extern "C" hydra_status_t hydra_logging_setup_file(const char* run_dir,
 
     return HYDRA_STATUS_OK;
   } catch (const std::exception& ex) {
-    assign_error(error_message, std::string("Failed to setup log file: ") +
-                                    ex.what());
+    assign_error(error_message,
+                 std::string("Failed to setup log file: ") + ex.what());
     return HYDRA_STATUS_ERROR;
   }
 }

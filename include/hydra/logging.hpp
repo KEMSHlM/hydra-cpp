@@ -28,4 +28,4 @@ void log_config(const ConfigNode& config);
  */
 void setup_log_file(const std::string& run_dir);
 
-}  // namespace hydra
+} // namespace hydra

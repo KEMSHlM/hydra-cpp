@@ -78,17 +78,15 @@ ConfigNode initialize(int argc, char** argv,
   }
 
   // Set job name from program name if not already set
-  const ConfigNode* job_name_node =
-      find_path(config, {"hydra", "job", "name"});
+  const ConfigNode* job_name_node = find_path(config, {"hydra", "job", "name"});
   if (!job_name_node || job_name_node->is_null()) {
-    std::string job_name = "app";  // default fallback
+    std::string job_name = "app"; // default fallback
     if (argc > 0 && argv != nullptr && argv[0] != nullptr) {
       // Extract basename from argv[0]
       fs::path prog_path = argv[0];
-      job_name = prog_path.filename().string();
+      job_name           = prog_path.filename().string();
     }
-    assign_path(config, {"hydra", "job", "name"},
-                make_string(job_name), false);
+    assign_path(config, {"hydra", "job", "name"}, make_string(job_name), false);
   }
 
   // Resolve interpolations

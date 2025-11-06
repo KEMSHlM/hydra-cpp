@@ -115,7 +115,8 @@ write_hydra_outputs(const ConfigNode& root,
                     const std::vector<std::string>& overrides);
 
 // Initialize Hydra configuration from command-line arguments
-// Performs: config loading, override application, job.name derivation, and interpolation
+// Performs: config loading, override application, job.name derivation, and
+// interpolation
 ConfigNode initialize(int argc, char** argv,
                       const std::string& default_config = "configs/main.yaml");
 
