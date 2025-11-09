@@ -235,18 +235,55 @@ ConfigNode merged(const ConfigNode& base, const ConfigNode& override_node) {
   return result;
 }
 
+namespace {
+
+bool parse_index(const std::string& component, size_t& index) {
+  if (component.empty()) {
+    return false;
+  }
+  size_t value = 0;
+  for (char ch : component) {
+    if (ch < '0' || ch > '9') {
+      return false;
+    }
+    size_t digit = static_cast<size_t>(ch - '0');
+    size_t next  = value * 10 + digit;
+    if (next < value) {
+      return false; // overflow
+    }
+    value = next;
+  }
+  index = value;
+  return true;
+}
+
+} // namespace
+
 ConfigNode* find_path(ConfigNode& root, const std::vector<std::string>& path) {
   ConfigNode* current = &root;
   for (const auto& component : path) {
-    if (!current->is_mapping()) {
-      return nullptr;
+    if (current->is_mapping()) {
+      auto& mapping = current->as_mapping();
+      auto it       = mapping.find(component);
+      if (it == mapping.end()) {
+        return nullptr;
+      }
+      current = &it->second;
+      continue;
     }
-    auto& mapping = current->as_mapping();
-    auto it       = mapping.find(component);
-    if (it == mapping.end()) {
-      return nullptr;
+    if (current->is_sequence()) {
+      size_t index = 0;
+      if (!parse_index(component, index)) {
+        return nullptr;
+      }
+      auto& sequence = current->as_sequence();
+      if (index >= sequence.size()) {
+        return nullptr;
+      }
+      current = &sequence[index];
+      continue;
     }
-    current = &it->second;
+    return nullptr;
   }
   return current;
 }
@@ -255,15 +292,28 @@ const ConfigNode* find_path(const ConfigNode& root,
                             const std::vector<std::string>& path) {
   const ConfigNode* current = &root;
   for (const auto& component : path) {
-    if (!current->is_mapping()) {
-      return nullptr;
+    if (current->is_mapping()) {
+      const auto& mapping = current->as_mapping();
+      auto it             = mapping.find(component);
+      if (it == mapping.end()) {
+        return nullptr;
+      }
+      current = &it->second;
+      continue;
     }
-    const auto& mapping = current->as_mapping();
-    auto it             = mapping.find(component);
-    if (it == mapping.end()) {
-      return nullptr;
+    if (current->is_sequence()) {
+      size_t index = 0;
+      if (!parse_index(component, index)) {
+        return nullptr;
+      }
+      const auto& sequence = current->as_sequence();
+      if (index >= sequence.size()) {
+        return nullptr;
+      }
+      current = &sequence[index];
+      continue;
     }
-    current = &it->second;
+    return nullptr;
   }
   return current;
 }

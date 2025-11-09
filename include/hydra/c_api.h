@@ -8,6 +8,7 @@ extern "C" {
 #endif
 
 typedef struct hydra_config hydra_config_t;
+typedef struct hydra_config_iter hydra_config_iter_t;
 
 typedef enum hydra_status {
   HYDRA_STATUS_OK    = 0,
@@ -36,6 +37,26 @@ hydra_status_t hydra_config_apply_override(hydra_config_t* config,
                                            const char* expression,
                                            char** error_message);
 
+hydra_status_t hydra_config_subnode(hydra_config_t* config,
+                                    const char* path_expression,
+                                    hydra_config_t** out_subconfig,
+                                    char** error_message);
+
+hydra_status_t hydra_config_sequence_iter(const hydra_config_t* config,
+                                          const char* path_expression,
+                                          hydra_config_iter_t** out_iter,
+                                          char** error_message);
+
+hydra_status_t hydra_config_map_iter(const hydra_config_t* config,
+                                     const char* path_expression,
+                                     hydra_config_iter_t** out_iter,
+                                     char** error_message);
+
+int hydra_config_iter_next(hydra_config_iter_t* iter, char** child_path,
+                           char** key, size_t* index, char** error_message);
+
+void hydra_config_iter_destroy(hydra_config_iter_t* iter);
+
 int hydra_config_has(const hydra_config_t* config, const char* path_expression);
 
 hydra_status_t hydra_config_get_bool(const hydra_config_t* config,
@@ -53,6 +74,23 @@ hydra_status_t hydra_config_get_double(const hydra_config_t* config,
 hydra_status_t hydra_config_get_string(const hydra_config_t* config,
                                        const char* path_expression,
                                        char** out_value, char** error_message);
+
+hydra_status_t hydra_config_clone_string(const hydra_config_t* config,
+                                         const char* path_expression,
+                                         char** out_value,
+                                         char** error_message);
+
+hydra_status_t hydra_config_clone_string_list(const hydra_config_t* config,
+                                              const char* path_expression,
+                                              char*** out_items,
+                                              size_t* out_count,
+                                              char** error_message);
+
+void hydra_string_list_free(char** items, size_t count);
+
+hydra_status_t hydra_config_ensure_directory(const hydra_config_t* config,
+                                             const char* path_expression,
+                                             char** error_message);
 
 char* hydra_config_to_yaml_string(const hydra_config_t* config,
                                   char** error_message);
