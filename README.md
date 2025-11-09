@@ -79,6 +79,12 @@ int main(int argc, char** argv) {
 }
 ```
 
+Key helper APIs for C consumers:
+- `hydra_config_sequence_iter` / `hydra_config_map_iter` enumerate YAML sequences and mappings without manual `key.0` bookkeeping (each call returns the next child path and key/index).
+- `hydra_config_subnode` copies a subtree into its own `hydra_config_t`, so deeply nested prefixes such as `visualization.layouts` can be accessed with short paths.
+- `hydra_config_clone_string` / `hydra_config_clone_string_list` produce owned `char*`/`char**` buffers (free them with `hydra_string_free` / `hydra_string_list_free`) for long-lived strings and string arrays.
+- `hydra_config_ensure_directory` creates the directory referred to by a configuration value (handy for `hydra.run.dir`, dataset caches, etc.).
+
 ### C++ API Usage
 
 ```cpp
@@ -160,6 +166,7 @@ If you have suggestions or improvements, please open a pull request.
 - Hydra と同じランタイム出力 (`hydra.run.dir` 以下に `.hydra/config.yaml` などを保存)
 - C API (`include/hydra/c_api.h`) による他言語連携
 - C API には Hydra 互換の CLI 解析ヘルパー `hydra_config_apply_cli` を用意
+- YAML のシーケンス／マップ列挙、部分木コピー、文字列／配列クローン、ディレクトリ初期化といった基本操作を C API (`hydra_config_sequence_iter`, `hydra_config_subnode`, `hydra_config_clone_string_list`, `hydra_config_ensure_directory`) として提供
 - 設定値を扱いやすくするヘルパ (`hydra/c_api_utils.h`, `hydra/config_utils.hpp`) を同梱
 - [rxi/log.c](https://github.com/rxi/log.c) を統合したロギングシステム。`hydra.job_logging.root.level` から自動設定
 
